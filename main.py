@@ -4,8 +4,7 @@ Licensed under GPL-3.0 [see LICENSE for details]
 Written by Jonathan Samelson (2021-2022)
 """
 
-import tracker_client_video as tcv
-import tracker_client_online as tco
+import vehicle_counter as vc
 
 import argparse
 import os
@@ -46,4 +45,4 @@ if __name__ == "__main__":
                         fmt="%(asctime)s %(hostname)s %(name)s[%(process)d] %(levelname)s %(message)s")
 
 
-    tco.main(args["detector"], args["tracker"], args["classes"])
+    vc.main(args["detector"], args["tracker"], args["classes"])
