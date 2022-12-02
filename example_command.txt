@@ -1,0 +1,5 @@
+cd "C:\Users\Aurora\OneDrive - UMONS\APTITUDE\APTITUDE_Toolbox"
+
+conda activate apt_tb
+
+python clients/main.py -d "C:\Users\Utilisateur\APTITUDE_Toolbox\configs\detect-yolov5.json" -t "C:\Users\Utilisateur\APTITUDE_Toolbox\configs\track-sort.json" -c "C:\Users\Utilisateur\APTITUDE_Toolbox\configs\classes-mio.json" -p "D:\Dropbox\ARTHUR\Aptitude\APTITUDE Toolbox\videos\traffic_example_short.mp4"
