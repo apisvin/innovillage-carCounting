@@ -27,8 +27,7 @@ line_type = cv2.LINE_AA
 thickness = 2
 
 
-def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_path, record_fps, record_size,
-         mot_path, headless, display_size, async_flag, gt_path):
+def main(cfg_detect, cfg_track, cfg_classes, video_path):
 
     log = logging.getLogger("aptitude-toolbox")
 
@@ -70,10 +69,7 @@ def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_
 
     # If async flag is present, use the VideoCaptureAsync class
     # It allows to load the images in parallel of the detection/tracking process
-    if async_flag:
-        cap = VideoCaptureAsync(video_path)
-    else:
-        cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path)
 
     # Measure elapsed time to read the image
     read_time_start = default_timer()
@@ -86,24 +82,10 @@ def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_
     else:
         log.error("Error while opening video file, check if the input path is correct.")
 
-    # Read GT file in MOT format
-    if gt_path is not None:
-        with open(gt_path, 'r') as gt:
-            gt_lines = gt.readlines()
-            gt_line_number = 0
-            gt_frame_num = 1
-            log.debug("Ground truth file open successfully.")
-
     is_paused = False
 
     # If record flag is present, initializes the VideoWriter to save the results of the process
-    record = record_path is not None
     H, W, _ = frame.shape
-    if record:
-        if record_size is None:
-            record_size = (H, W)
-        output_video = cv2.VideoWriter(record_path, cv2.VideoWriter_fourcc(*'mp4v'), record_fps, record_size)
-        log.debug("VideoWriter opened successfully.")
 
     start_time = default_timer()
     last_update = default_timer()
@@ -123,7 +105,7 @@ def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_
 
         # Check if a key was pressed but with some delay, as it is resource consuming
         time_update = default_timer()
-        if not headless and time_update - last_update > (1/10):
+        if time_update - last_update > (1/10):
             k = cv2.waitKey(1) & 0xFF
             if k == ord('p'):  # pause/play loop if 'p' key is pressed
                 log.debug("Process paused/resumed.")
@@ -137,91 +119,50 @@ def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_
             time.sleep(0.5)
             continue
 
-        # Frame interval can be used to skip frames.
-        # Do the process if the counter is divisible by frame_interval
-        if counter % frame_interval == 0:
-            (H, W, _) = frame.shape
-            log.debug("Before detection.")
-            det = detection_manager.detect(frame)
-            log.debug("After detection & before tracking.")
-            if tracking_manager.tracker.need_frame:
-                res = tracking_manager.track(det, frame)
-                log.debug("After tracking, with frame.")
-            else:
-                res = tracking_manager.track(det)
-                log.debug("After tracking, without frames.")
+        #detection and track
+        (H, W, _) = frame.shape
+        log.debug("Before detection.")
+        det = detection_manager.detect(frame)
+        log.debug("After detection & before tracking.")
+        if tracking_manager.tracker.need_frame:
+            res = tracking_manager.track(det, frame)
+            log.debug("After tracking, with frame.")
+        else:
+            res = tracking_manager.track(det)
+            log.debug("After tracking, without frames.")
 
-            tot_det_time += det.detection_time
-            tot_track_time += res.tracking_time
+        tot_det_time += det.detection_time
+        tot_track_time += res.tracking_time
 
-            # Change dimensions of the result to match to the initial dimension of the frame
-            res.change_dims(W, H)
-            log.debug("Dimensions of the results changed: (W: {}, H:{}).".format(W, H))
+        # Change dimensions of the result to match to the initial dimension of the frame
+        res.change_dims(W, H)
+        log.debug("Dimensions of the results changed: (W: {}, H:{}).".format(W, H))
 
-            # Add the result to the output file in MOT format
-            if mot_path is not None:
-                for i in range(res.number_objects):
-                    results = "{0},{1},{2},{3},{4},{5},-1,-1,-1,-1\n".format(counter + 1, res.global_IDs[i],
-                                                                             res.bboxes[i][0], res.bboxes[i][1],
-                                                                             res.bboxes[i][2], res.bboxes[i][3])
-                    log.debug(i, results)
-                    output_lines.append(results)
 
-            res.to_x1_y1_x2_y2()
-            log.debug("Results converted to x1,y1,x2,y2.")
-            # print(res)
 
-            # Add GT bboxes from GT file (MOT format) to the frame
-            if gt_path is not None:
-                while gt_frame_num == counter+1 and gt_line_number < len(gt_lines):
-                    line = gt_lines[gt_line_number]
-                    new_gt_frame_num, id, left, top, width, height, _, _, _, _ = line.split(",")
-                    new_gt_frame_num, id, left, top, width, height = int(new_gt_frame_num), int(id), int(left), \
-                                                                     int(top), int(width), int(height)
-                    if new_gt_frame_num > gt_frame_num:
-                        gt_frame_num = new_gt_frame_num
-                        break
+        res.to_x1_y1_x2_y2()
+        log.debug("Results converted to x1,y1,x2,y2.")
+        # print(res)
 
-                    # Draw a white rectangle for each bbox
-                    cv2.rectangle(frame, (left, top), (left + width, top + height), (255, 255, 255), 2)
+        
+        # Add the bboxes from the process to the frame
+        for i in range(res.number_objects):
+            id = res.global_IDs[i]
+            color = [int(c) for c in COLORS[id]]
+            vehicle_label = 'I: {0}, T: {1} ({2})'.format(id, CLASSES[res.class_IDs[i]], str(res.det_confs[i])[:4])
 
-                    # Write a text with the ground truth ID
-                    # cv2.putText(frame, str(id), (left, top - 5), font, 1, (255, 255, 255), 2, line_type)
-                    gt_line_number += 1
-                log.debug("Ground truth bounding boxes added to the image.")
+            # Draw a rectangle (with a random color) for each bbox
+            cv2.rectangle(frame, (round(res.bboxes[i][0]), round(res.bboxes[i][1])),
+                            (round(res.bboxes[i][2]), round(res.bboxes[i][3])), color, thickness)
 
-            # Add the bboxes from the process to the frame
-            for i in range(res.number_objects):
-                id = res.global_IDs[i]
-                color = [int(c) for c in COLORS[id]]
-                vehicle_label = 'I: {0}, T: {1} ({2})'.format(id, CLASSES[res.class_IDs[i]], str(res.det_confs[i])[:4])
-
-                # Draw a rectangle (with a random color) for each bbox
-                cv2.rectangle(frame, (round(res.bboxes[i][0]), round(res.bboxes[i][1])),
-                              (round(res.bboxes[i][2]), round(res.bboxes[i][3])), color, thickness)
-
-                # Write a text with the vehicle label, the confidence score and the ID
-                cv2.putText(frame, vehicle_label, (round(res.bboxes[i][0]), round(res.bboxes[i][1] - 5)),
-                            font, 1, color, thickness, line_type)
-            log.debug("Results bounding boxes added to the image.")
-
-            # If headless flag is absent, show the results of the process in a dedicated window
-            if not headless:
-                frame_display = frame
-                if display_size is not None:
-                    frame_display = cv2.resize(frame_display, display_size)
-                    log.debug("Frame resized for display")
-                cv2.imshow("Result", frame_display)
-                log.debug("Frame displayed.")
-
-            # If record flag is present, record the resulting frame on the disk
-            if record:
-                frame_record = frame
-                if record_size is not None:
-                    frame_record = cv2.resize(frame_record, record_size)
-                    log.debug("Frame resized for record")
-                output_video.write(frame_record)
-                log.debug("Frame written to VideoWriter.")
+            # Write a text with the vehicle label, the confidence score and the ID
+            cv2.putText(frame, vehicle_label, (round(res.bboxes[i][0]), round(res.bboxes[i][1] - 5)),
+                        font, 1, color, thickness, line_type)
+        
+        frame_display = frame
+        cv2.imshow("Result", frame_display)
+        log.debug("Frame displayed.")
+        
         pbar.update(1)
         counter += 1
 
@@ -240,20 +181,5 @@ def main(cfg_detect, cfg_track, cfg_classes, video_path, frame_interval, record_
 
     log.info("Average detection time: {}".format(tot_det_time / counter))
     log.info("Average tracking time: {}".format(tot_track_time / counter))
-
-    # Write all the lines at once in a file
-    if mot_path is not None:
-        with open(mot_path, "w") as out:
-            out.writelines(output_lines)
-            log.debug("Lines written to output path.")
-
-    # Stop method of VideoCaptureAsync must be called before release
-    if async_flag:
-        cap.stop()
-    cap.release()
-
-    # If record flag is enabled, release the video so it can be written effectively on the disk
-    if record:
-        output_video.release()
 
     cv2.destroyAllWindows()

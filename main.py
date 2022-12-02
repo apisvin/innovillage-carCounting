@@ -33,26 +33,6 @@ if __name__ == "__main__":
                     help="path to tracker config (json file)")
     ap.add_argument("-c", "--classes", required=True,
                     help="path to classes (json file)")
-    ap.add_argument("-p", "--path", type=str, required=True,
-                    help="path to video file / folder path containing images (.png/.jpg/.bmp) in lexical order")
-    ap.add_argument("-fi", "--frame_interval", type=int, default=1,
-                    help="interval between two detections + tracking. Default is 1")
-    ap.add_argument("-gt", "--ground_truth_path", type=str, default=None,
-                    help="path to ground truth file in MOT format.")
-    ap.add_argument("-hl", "--headless", action='store_true',
-                    help="whether the video is shown as it is processed")
-    ap.add_argument("-ds", "--display_size", type=dims, default=None,
-                    help="dimension of the video shown as it is processed: width,height")
-    ap.add_argument("-rp", "--record_path", type=str, default=None,
-                    help="path of the output video file")
-    ap.add_argument("-rf", "--record_fps", type=int, default=10,
-                    help="fps of the output video file")
-    ap.add_argument("-rs", "--record_size", type=dims, default=None,
-                    help="dimension of the recorded video: width,height. each image is resized just before being written")
-    ap.add_argument("-mp", "--mot_path", type=str, default=None,
-                    help="path to the result of tracking in MOT format")
-    ap.add_argument("-a", "--async", action='store_true',
-                    help="for video file only. whether video reading is asynchronous")
     ap.add_argument("-l", "--log_level", type=str, default="INFO",
                     help="Log level."
                          "Possible values : \"NOTSET\", \"DEBUG\", \"INFO\", \"WARNING\", \"ERROR\", \"CRITICAL\".")
@@ -65,11 +45,5 @@ if __name__ == "__main__":
     coloredlogs.install(level=args["log_level"],
                         fmt="%(asctime)s %(hostname)s %(name)s[%(process)d] %(levelname)s %(message)s")
 
-    if args["path"]=="online":
-        tco.main(args["detector"], args["tracker"], args["classes"],
-                    args["path"], args["frame_interval"], args["record_path"], args["record_fps"], args["record_size"],
-                    args["mot_path"], args["headless"], args["display_size"], args["async"], args["ground_truth_path"])
-    else:
-        tcv.main(args["detector"], args["tracker"], args["classes"],
-                    args["path"], args["frame_interval"], args["record_path"], args["record_fps"], args["record_size"],
-                    args["mot_path"], args["headless"], args["display_size"], args["async"], args["ground_truth_path"])
+
+    tco.main(args["detector"], args["tracker"], args["classes"])
