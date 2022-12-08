@@ -187,7 +187,7 @@ def main(cfg_detect, cfg_track, cfg_classes):
         for i in range(res.number_objects):
             id = res.global_IDs[i]
             color = [int(c) for c in COLORS[id]]
-            vehicle_label = 'I: {0}, T: {1} ({2})'.format(id, CLASSES[res.class_IDs[i]], str(res.det_confs[i])[:4])
+            vehicle_label = 'T: {0} ({1})'.format(CLASSES[res.class_IDs[i]], str(res.det_confs[i])[:4])
 
             # Draw a rectangle (with a random color) for each bbox
             cv2.rectangle(frame, (round(res.bboxes[i][0]), round(res.bboxes[i][1])),
@@ -200,6 +200,7 @@ def main(cfg_detect, cfg_track, cfg_classes):
         # Draw a line where counting process is achieved
         cv2.line(frame, bLine_p0, bLine_p1, color=(0,0,255), thickness=thickness)
         cv2.putText(frame, "Counter = "+str(obj_counter), (0,30), font, 1, (0,0,255), thickness, line_type)
+        cv2.putText(frame, "Type r to reset counter, q to quit", (0,50), font, 0.5, (0,0,255), thickness-1, line_type)
         log.debug("Results bounding boxes added to the image.")
 
         
