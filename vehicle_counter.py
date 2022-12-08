@@ -86,6 +86,9 @@ def main(cfg_detect, cfg_track, cfg_classes):
     cap = cv2.VideoCapture(0)
     print("cap opened")
 
+    #create result window for display 
+    cv2.namedWindow("Result", cv2.WINDOW_NORMAL)
+
     # Measure elapsed time to read the image
     read_time_start = default_timer()
     is_reading, frame = cap.read()
